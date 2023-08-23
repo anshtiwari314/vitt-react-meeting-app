@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville&display=swap');
+
+body{
+    background-color: #727272;
+}
+*{
+    font-family: 'Libre Baskerville', serif;
+    -webkit-user-drag:none;
+    -moz-user-drag:none;
+    -khtml-user-drag:none;
+    -ms-user-drag:none;
+
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -moz-user-select: none;
+    -khtml-user-select: none;
+}
+html{
+    font-size: 62.5%;
+}
+.flex-container{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height:90vh;
+}
+h1{
+    font-size: 4rem;
+    color:#141414;
+}
+
+header img{
+    width:50px;
+    height:50px;
+   
+    object-fit:contain
+}
+.images img{
+    border-radius: 5rem;
+    width:50rem;
+    height:35rem;
+}
+p{
+    text-align: center;
+    width:20rem;
+    color:white;
+    font-weight:bold;
+}
+#newMeeting,#join{
+    padding:1rem 1.5rem;
+    background-color: #355dd5;
+    border-radius: 1.5rem;
+    color: white;
+    font-size: 1.5rem;
+    outline:none;
+    border:none;
+    cursor: pointer;
+    text-transform: capitalize;
+}
+#newMeeting:hover,#join:hover{
+    background-color: #3f69e6;
+}
+#newMeeting:disabled{
+    background-color: gray;
+}
+#join{
+    margin-left: 1rem;
+}
+.client-mob{
+    width:15rem;
+    padding:1.2rem 1.5rem;
+    border-radius:1rem ;
+    border:none;
+    outline-color: white;
+}
+#meetingInput{
+    width:20rem;
+    padding:1.2rem 1.5rem;
+    border-radius:1rem ;
+    border:none;
+    outline-color: white;
+}
+.meetinglink{
+        /* border:0.1rem solid red; */
+        padding:0.2rem 0.5rem;
+        width:30rem;
+        background-color: white;
+        margin:0.5rem 0;
+        border:none;
+        border-radius: 1rem;
+        font-size: 1.2rem;
+        color:rgb(87, 86, 86);            
+        text-align: left;
+    }
+@media screen and (max-width:800px){
+    html{
+        font-size: 55%;
+    }
+    h1{
+        font-size: 3rem;
+    }
+    img{
+        width:35rem;
+        height:25rem;
+    }
+    .flex-container{
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: space-around;
+    align-items: center;
+    height:80vh;
+    }
+    
+}

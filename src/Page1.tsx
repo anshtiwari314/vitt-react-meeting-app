@@ -3,9 +3,9 @@ import { useData } from './context/DataWrapper'
 import {useParams,useSearchParams,useNavigate} from 'react-router-dom'
 import { v4 as uuidv4 } from 'uuid';
 import Video from './Video'
-import Audio from './Audio'
-import DisplayComp from './DisplayComp';
-
+import Audio from './components/Audio'
+import DisplayComp from './components/DisplayComp';
+import DisplayComp2 from './components/DisplayComp2';
 
 export default function Page1() {
     //@ts-ignore
@@ -51,7 +51,7 @@ export default function Page1() {
     return ;
 
     let params = new URLSearchParams(link)
-
+//params.get('cust_id')
     let tempId =params.get('cust_id');
     let tempIsHost = false 
     
@@ -157,13 +157,27 @@ export default function Page1() {
         //             <Video e={e} muted={false} />
         //           </span>
         // }
-        return <span key={i}> 
-        {
-          i===0 ? 
-          <DisplayComp e={e} muted={true} /> : 
-          <DisplayComp e={e} muted={false}/> 
+
+        //if()
+        if(e.remove===true){
+          return null
         }
-        </span>
+        if(i==0){
+          return <span key={i}>
+            {/* <DisplayComp e={e} muted={true} /> */}
+          </span>
+        }else{
+          return <span key={i}>
+            {/* <DisplayComp e={e} muted={false} /> */}
+          </span>
+        }
+        // return <span key={i}> 
+        // {
+        //   i===0 ? 
+        //   <DisplayComp2 e={e} muted={true} /> : 
+        //   <DisplayComp2 e={e} muted={false}/> 
+        // }
+        //</span>
     })}
     
     </div>
