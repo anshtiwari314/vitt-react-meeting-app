@@ -57,14 +57,13 @@ function handleFeedback(e:any,url:string){
         },
         body:JSON.stringify({
             sessionid: e.sessionid, 
-            audiofiletimestamp: e.audiofiletimestamp 
+            audiofiletimestamp: e.audiofiletimestamp ,
+            istranscription:e.initquery
         }),
         cache:'default',}).then(res=>{
            console.log("res from feedback server",res)
            return res.json()
         }).then((result)=>{
-          
-          // //setMsg((prev)=>[...prev,...result])
           console.log(result)
         })
 }
@@ -104,7 +103,27 @@ export default function Msg({e}:{e:any}) {
       // https://media.tenor.com/On7kvXhzml4AAAAj/loading-gif.gif
      
     <div className='msg'>
-            <h5>{e.similarity_query}</h5>
+            <div className='wrapper' style={{marginBottom:"0.5rem"}}>
+                <div className='first v-center h-center' style={{opacity:0}}>   
+                    <i 
+                    className={`${IconName(e.iconColor)?.toString()}`} 
+                    style={{color:IconColor(e.iconColor)?.toString()}}
+                    
+                    ></i>
+                </div>
+                <div style={{flex:"0.8"}}>
+                    <h5 >{e.similarity_query}</h5> 
+                </div>
+                <div className='third v-center h-center' style={{opacity:0}}>
+                    <input
+                        className="response-radio" 
+                        onClick={()=>setChecked(prev=>!prev)}
+                        onChange={()=>{radioRef.current=true}}
+                        checked={checked}
+                        type="radio" 
+                        style={{accentColor:"rgb(125, 17, 233)"}}/>
+                </div>
+            </div>
             <div className='wrapper'>
                 <span className='first v-center h-center'>
                     <i 
@@ -112,13 +131,10 @@ export default function Msg({e}:{e:any}) {
                     style={{color:IconColor(e.iconColor)?.toString()}}
                     
                     ></i>
-                    
                     {/* @ts-ignore */}
                     {/* {Parser(enumIcons(e.color)?.toString())} */}
                 </span>
-                
-                <MsgTypeSelector e={e}/>
-                
+                    <MsgTypeSelector e={e}/>
                 {/* <div className='second'>i am text div</div> */}
                 <span className='third v-center h-center'>
                     <input

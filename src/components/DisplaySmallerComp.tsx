@@ -1,6 +1,6 @@
 import React,{useState,useEffect,useRef} from 'react'
 
-export function TextPlaceHolder({e,large}:{e:Object,large:boolean}){
+export function TextPlaceHolder({e,large}:{e:any,large:boolean}){
     let styling ={
       textWrapper:{
         width:"7rem",
@@ -14,7 +14,8 @@ export function TextPlaceHolder({e,large}:{e:Object,large:boolean}){
         alignItems:"center",
         // margin:"0 auto",
         borderRadius:"3.5rem",
-        backgroundColor:"violet"
+        backgroundColor:"violet",
+        zIndex:"2"
       },
       text:{
         fontSize:"2rem",
@@ -28,7 +29,7 @@ export function TextPlaceHolder({e,large}:{e:Object,large:boolean}){
 
     return (
       <div style={styling.textWrapper} >
-            <p style={styling.text}>{e?.name.substring(0,2).toUpperCase()}</p>  
+            <p style={styling.text}>{e?.name?.substring(0,2).toUpperCase()}</p>  
       </div>
     )
 }
@@ -132,6 +133,8 @@ export function AudioVideo({e,muted,large=null,num,isMobile}:{e:any,muted:boolea
 
               //ref.muted = muted
               ref.muted = muted
+              //console.log("contains video stream",e.stream,e.stream.getTracks())
+              
               ref.srcObject = e.stream 
                 
               }

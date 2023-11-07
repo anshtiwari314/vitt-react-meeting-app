@@ -1,27 +1,32 @@
 import React from 'react'
 import {Routes,HashRouter,Route} from 'react-router-dom'
-import DataWrapper from './context/DataWrapper'
+
 import Page1 from './Page1'
-import './App.css'
 import HomePage from './pages/HomePage'
-import MainPage from './pages/MainPage'
+
 import Leave from './pages/Leave'
+import MainPageWrapper from './pages/MainPageWrapper'
+import AuthWrapper from './context/AuthWrapper'
+import LeavePageWrapper from './pages/LeavePageWrapper'
+import HomePageWrapper from './pages/HomePageWrapper'
 
 export default function App() {
   return (
-    <DataWrapper>
-    {/* this is render as data wrapper child */}
+    <AuthWrapper>
     <HashRouter>
         <Routes>
             {/* <Route path ="/" element={<MainPage/>}/> */}
-            <Route path='/' element={<HomePage/>}/>
-            <Route path='/meeting' element={<MainPage/>}/>
-            <Route path='/meeting/:link' element={<MainPage/>}/>
-            <Route path='/leave' element={<Leave/>}/>
+            
+            <Route path='/' element={<HomePageWrapper/>}/>
+            <Route path='/meeting' element={<MainPageWrapper/>}/>
+            <Route path='/meeting/:link' element={<MainPageWrapper/>}/>
+            <Route path='/leave' element={<LeavePageWrapper/>}/>
+            <Route path='/leave/:link' element={<LeavePageWrapper/>}/>
+
             {/* <Route path='' element={<></>}/> */}
         </Routes>
     </HashRouter>
-    </DataWrapper>
+    </AuthWrapper>
     
   )
 }

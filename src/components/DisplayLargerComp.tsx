@@ -1,7 +1,7 @@
 import React,{useState,useEffect,useRef} from 'react'
 import {v4 as uuidv4} from 'uuid'
 
-export function TextPlaceHolder({e,large}:{e:Object,large:boolean}){
+export function TextPlaceHolder({e,large}:{e:any,large:boolean}){
     let styling ={
       textWrapper:{
         width:"30rem",
@@ -23,12 +23,13 @@ export function TextPlaceHolder({e,large}:{e:Object,large:boolean}){
       }
     }
     useEffect(()=>{
-      console.log("textPlaceHolder",e,large)
+     // console.log("textPlaceHolder",e,large)
     },[])
 
     return (
       <div style={styling.textWrapper} >
-            <p style={styling.text}>{e?.name.substring(0,2).toUpperCase()}</p>  
+        
+            <p style={styling.text}>{e?.name?.substring(0,2).toUpperCase()}</p>  
       </div>
     )
 }
@@ -166,19 +167,25 @@ export function AudioVideo({e,muted,large,num,isMobile}:{e:any,muted:boolean,lar
 
 export default function DisplayLargerComp({e,muted,large,setSelectedNumber=null,num,isMobile}:{e:any,muted:boolean,large:boolean,setSelectedNumber:any,num:number,isMobile:boolean}) {
  
-  useEffect(()=>{
-   // console.log('large display-component triggers')
-  },[])
-  function displayOnLargeScreen(){
-      
-      if(setSelectedNumber===null|| large===true)
-      return ;
+  const ref = useRef<any>(null)
 
-      setSelectedNumber(num)
+  function openFullscreen() {
+    if(ref.current ===null)
+    return ;
+
+
+    if (ref.current.requestFullscreen) {
+      ref.current.requestFullscreen();
+    } else if (ref.current.webkitRequestFullscreen) { /* Safari */
+      ref.current.webkitRequestFullscreen();
+    } else if (ref.current.msRequestFullscreen) { /* IE11 */
+      ref.current.msRequestFullscreen();
     }
-    
+  }
+
+
 return (
-  <div onClick={displayOnLargeScreen} style={{height:"100%",width:"100%",display:"flex",justifyContent:"center",alignItems:"center"}}>
+  <div onDoubleClick={()=>openFullscreen()} ref={ref} style={{height:"100%",width:"100%",display:"flex",justifyContent:"center",alignItems:"center"}}>
       {/* @ts-ignore */}
       <AudioVideo e={e} muted={muted} num={num} isMobile={isMobile}/>
       {/* <TextPlaceHolder large={large} setLargeVideo={setLargeVideo}/> */}

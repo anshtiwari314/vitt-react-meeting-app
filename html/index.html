@@ -9,8 +9,8 @@ export default function HomePage() {
    const [mobile,setMobile] = useState<string|number>('')
    const [loading,setLoading] = useState<boolean>(false)
    const [joiningLink,setJoiningLink] = useState<string>('')
-   const ref = useRef<any>(null)
-   //const navigate  =useNavigate()
+   const ref = useRef(null)
+   const navigate  =useNavigate()
 
    async function newMeeting(){
      //  let mobile= '8708213235'
@@ -62,7 +62,7 @@ export default function HomePage() {
             //meetingBtn.disabled = false
         })
 
-        setLink(`${window.location.protocol}//${window.location.host}/meeting.html?room_id=${roomId}&cust_id=${custId}&mob=${mobile}`)
+        setLink(`${window.location.host}/#/meeting/room_id=${roomId}&cust_id=${custId}&mob=${mobile}`)
    }
 
    function join(){
@@ -73,7 +73,7 @@ export default function HomePage() {
        // window.location= joiningLink
        let tempArr=joiningLink.split('#')
        console.log(tempArr)
-       window.location.href= tempArr[1]
+       navigate(tempArr[1])
    }
    async function handleCopyToClipboard(){
     if(link ==='' || ref.current===null)
@@ -94,12 +94,7 @@ export default function HomePage() {
    },[])
 
    
-  return (
-    // <div>HomePage
-    //     <button onClick={()=>newMeeting()}>new meeting</button>
-    //     <p>{link}</p>
-    // </div>
-    <>
+ 
     <header >
         <img src={logo}/>
     </header>
@@ -131,7 +126,6 @@ export default function HomePage() {
                 <textarea 
                     rows={7} 
                     value={link} 
-                    //@ts-ignore
                     onClick={()=>handleCopyToClipboard(link)} 
                     ref = {ref}
                     onChange={()=>null}
@@ -162,5 +156,4 @@ export default function HomePage() {
         </div>
     </div>
     </>
-  )
-}
+

@@ -8,16 +8,17 @@ import {v4 as uuidv4} from 'uuid'
 import DisplayLargerComp from '../components/DisplayLargerComp'
 import DisplaySmallerComp from '../components/DisplaySmallerComp'
 import Msg from '../components/Msg'
-
+import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
+import PushPinIcon from '@mui/icons-material/PushPin';
 
 //@ts-ignore
-export function Tray({openSideWindow,setOpenSideWindow,messagingOn,setMessagingOn,isMobile,toggleRmWindow,setToggleRmWindow}){
+export function Tray({openSideWindow,setOpenSideWindow,messagingOn,setMessagingOn,isMobile,toggleRmWindow,setToggleRmWindow,link}){
   // const [cameraToggle,setCameraToggle ] = useState(true)
   // const [microphoneToggle,setMicroPhoneToggle] = useState(true)
   //@ts-ignore
-  const {cameraToggle,setCameraToggle ,microphoneToggle,setMicroPhoneToggle} = useData()
+  const {cameraToggle,setCameraToggle ,microphoneToggle,setMicroPhoneToggle,screenSharing,setScreenSharing,isHost} = useData()
   const [time,setTime] = useState('')
-  //const navigate = useNavigation()
+  //const navigate = useNavigate()
   // const [] = useState()
   
   function handleLeave(e:{e:any}){
@@ -93,11 +94,13 @@ export function Tray({openSideWindow,setOpenSideWindow,messagingOn,setMessagingO
       clearInterval(intervalId)
     }
   },[])
+
   return(
     <div style={styling.tray}>
       <div style={styling.trayWrapper}>
         <div style={styling.iconHolderDiv}>{time}</div>
-        <div style={styling.iconHolderDiv}>
+        {isHost===true?
+          <div style={styling.iconHolderDiv}>
             <i 
               style={{...styling.icon,display:`${toggleRmWindow===true?"":"none"}`}} 
               className="fa-solid fa-table-cells-large icons" 
@@ -111,6 +114,10 @@ export function Tray({openSideWindow,setOpenSideWindow,messagingOn,setMessagingO
               onClick={()=>setToggleRmWindow(true)}
             ></i>
         </div>
+        :
+        null
+        }
+        
         <div style={styling.iconHolderDiv}>
             <i 
               style={{...styling.icon,display:`${cameraToggle===true?"":"none"}`}} 
@@ -152,23 +159,42 @@ export function Tray({openSideWindow,setOpenSideWindow,messagingOn,setMessagingO
             onClick={()=>{setMessagingOn(false);setOpenSideWindow(true);}}
           ></i>
         </div>
+        {isMobile===false ?
         <div style={styling.iconHolderDiv}>
           <i 
-            style={{...styling.icon,display:""}} 
-            className="fa-solid fa-display icons" 
+            style={{...styling.icon,color:"white",display:`${screenSharing===false?"":"none"}`}} 
+            className="fa-solid fa-display icons"
             id="screen-sharing"
+            onClick={()=>{setScreenSharing(true)}}
+          ></i>
+          <i 
+            style={{...styling.icon,color:"red",display:`${screenSharing===true?"":"none"}`}} 
+            className="fa-brands fa-chromecast" 
+            id="screen-sharing"
+            onClick={()=>{setScreenSharing(false)}}
           ></i>
         </div>
+        :
+        null  
+        }
+        
         <div style={{...styling.iconHolderDiv,backgroundColor:"red"}}>
-          <a href="/leave" >
+        
+          <span >
               <i 
                 style={{...styling.icon,...styling.iconRed,display:""}} 
                 className="fa-solid fa-xmark icons" 
                 id="crossIcon"
                 //onClick={handleLeave}
+                
+               onClick={()=>{
+                //console.log(`${window.location.protocol})
+                //console.log(`${window.location.protocol}//${window.location.host}/leave.html${window.location.href.split('meeting.html')[1]}`)
+                window.location.href=`${window.location.protocol}//${window.location.host}/leave.html${window.location.href.split('meeting.html')[1]}`
 
+              }}
               ></i>
-          </a> 
+          </span> 
         </div>
       </div>
     </div>
@@ -177,20 +203,48 @@ export function Tray({openSideWindow,setOpenSideWindow,messagingOn,setMessagingO
 //@ts-ignore
 export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMessagingOn,isMobile}){
   //let [messagingOn,setMessagingOn] = useState<boolean>(false);
-  const {msg,setMsg,myId,name} =  useData()
+  //@ts-ignore
+  const ref= useRef<any>(null)
+  //@ts-ignore
+  const {msg,setMsg,myId,name,msgArrRef,users,socket,largeVideo,setLargeVideo} =  useData()
   const [message,setMessage] = useState('')
+  const msgRef = useRef('')
+
+  useEffect(()=>{
+    if(ref.current===null)
+    return; 
+   // console.log("refffing",ref)
+    function onPressEnter(e:any){
+      console.log("keypressed")
+      if(e.key==='Enter'){
+        e.preventDefault()
+        handleMessage()
+      }
+    }
+    ref.current?.addEventListener('keypress',onPressEnter)
+    return ()=> ref.current?.removeEventListener('keypress',onPressEnter)
+  })
 
   function handleMessage(){
-    console.log("handle message clicked")
+    if(socket===null || msgRef.current==='')
+    return ;
+    //console.log("handle message clicked",socket,socket.connected)
     //send this message to other users
     let tempMsgObj = {
       id:myId,
-      msg:message,
+      msg:msgRef.current,
       name:name
     } 
-    setMsg(prev=>[...prev,tempMsgObj])
+
+    msgArrRef.current.push(tempMsgObj)
+    //@ts-ignore
+    setMsg(prev=>[...msgArrRef.current])
+
+    msgRef.current = ''
     setMessage('')
 
+    //send this message to other users 
+    socket.emit('send-msg',msgArrRef.current[msgArrRef.current.length-1])
   }
 
   let styling:any ={
@@ -206,26 +260,28 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
       width:isMobile===false?"20vw":"100vw",
       height:"100vh",
       backgroundColor:"gray",
-      border:"0.2rem solid blue",
+      // border:"0.2rem solid blue",
 
     },
     firstRow:{
       display:"flex",
       justifyContent:"flex-end",
       height:"4rem",
-      border:"0.1rem solid red"
+      // border:"0.1rem solid red"
     },
     crossButton:{
       // width:"2rem",
       // height:"1rem",
       //height:"2rem",
-      padding:"1rem 1.2rem",
+      marginRight:"2rem",
+      padding:"2rem 2.2rem",
       fontSize:"2rem",
       display:"flex",
       justifyContent:"center",
       alignItems:"center"
     },
     secondRow:{
+      
       display:"flex",
       margin:"0 1rem",
       flexWrap:"wrap",
@@ -243,25 +299,22 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
     subSideWindow:{
       margin:"2rem 0",
       height:"80%",
-     
-      
-      //border:"0.1rem solid blue",
+      border:"0.5rem solid blue",
     },
     usersWindow:{
       overflowY:"scroll",
       scrollBehaviour:"smooth"
     },
     user:{
-      margin:"1rem 1rem",
+      margin:"0.8rem 1rem",
       boxSizing:"border-box",
       display:"flex",
       alignItems:"center",
       justifyContent:"space-around",
       fontSize:"1.8rem",
-      width:"80%",
-      padding:"1rem 0"
+      width:isMobile===false?"80%":"50%",
+      padding:"0rem 0",
       // border:"0.1rem solid red",
-      
     },
     msgWindow:{
       height:"90%",
@@ -281,7 +334,7 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
       width:"80%",
       paddingLeft:"1rem",
       outline:"none",
-      
+      border:"none"
     },
     sendBtn:{
       width:"20%",
@@ -299,7 +352,7 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
       
     },
     msg:{
-      // border:"0.1rem solid white",
+     // border:"0.1rem solid white",
       display:"flex",
       flexDirection:"column",
       margin:"0.5rem 0"
@@ -307,7 +360,7 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
     },
     msgWrapper:{
       width:"fit-content",
-      // border:"0.1rem solid red",
+     // border:"0.1rem solid red",
       padding:"0 1rem"
     },
     incomingWrapper:{
@@ -319,9 +372,11 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
       
     },
     name:{
+
       letterSpacing:"0.1rem",
       textTransform:"capitalize",
-      
+      // border:"0.1rem solid red"
+
     },
     incoming:{
       padding:"1rem",
@@ -337,12 +392,12 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
     }
   }
   return ( 
-      <div style={styling.sideWindow}>
-        <div style={styling.sideWindowWrapper}>
-          <div style={styling.firstRow}>
+      <div style={styling.sideWindow} className='side-window'>
+        <div style={styling.sideWindowWrapper} className='side-window-wrapper'>
+          <div style={styling.firstRow} className='first-row'>
               <button style={styling.crossButton} onClick={()=>setOpenSideWindow(false)}>
                     <i 
-                    style={{...styling.icon,...styling.iconRed,display:""}} 
+                    style={{...styling.icon,...styling.iconRed,fontSize:"3rem"}} 
                     className="fa-solid fa-xmark icons" 
                     //onClick={handleLeave}
                   ></i>
@@ -350,200 +405,78 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
           </div>
           <br/>
           <br/>
-          <div style={styling.secondRow}>
-              <span style={{fontSize:"1.8rem",color:"white"}}>users</span>
-              <button style={styling.button} onClick={()=>setMessagingOn(true)}>message</button>
-              <button style={styling.button} onClick={()=>setMessagingOn(false)}>users</button>
+          <div style={styling.secondRow} className='second-row'>
+              <span >users</span>
+              <button onClick={()=>setMessagingOn(true)}>message</button>
+              <button onClick={()=>setMessagingOn(false)}>users</button>
           </div>
           {messagingOn===false?
-          <div style={{...styling.subSideWindow ,...styling.usersWindow}}>
+          <div 
+            style={{...styling.usersWindow}} className='sub-side-window users-window' >
 
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
+              {users.map((e:any,i:number)=>{
+                return <div className='user' key={i}>
+                <div className='childA'>
+                  <div className='circle'>
+                    <p className='text'>{e?.name?.substring(0,2).toUpperCase()}</p>
                   </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
-
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
-
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
+                </div>
+                <div className='childB'>
+                  <p className='name'>{e?.name}</p>
+                  {e.isAdmin===true ? 
+                  <p className='host'>meeting host</p>:
+                  null
+                  }
+                  
+                </div>
+                <div className='childC' >
+                  {e.id ===largeVideo?.id ?  
+                  // <span className="material-symbols-outlined" style={{cursor:"pointer"}}>
+                  // push_pin
+                  // </span>
+                  <PushPinIcon style={{cursor:"pointer",fontSize:"2.5rem"}}/>
+                  :
+                  //fa-light fa-thumbtack pin
+                  // <i className="material-symbols-outlined material-symbols-filled" 
+                  // onClick={()=>setLargeVideo(e)}>
+                  // </i>
+                  // <span className="material-symbols-rounded"  >
+                  // push_pin
+                  // </span>
+                  <PushPinOutlinedIcon onClick={()=>setLargeVideo(e)} style={{cursor:"pointer",fontSize:"2.5rem"}}/>
+                }
+                  
+                </div>
+            </div>
+              })}
+            
               
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
-
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
-
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
-
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
-
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
-
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
-
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
-
-              <div style={styling.user}>
-                  <div style={{width:"fit-content"}}>
-                    <div style={{display:"flex",alignItems:"center",width:"3.5rem",justifyContent:"center",height:"3.5rem",borderRadius:"1.75rem",backgroundColor:"red"}}>
-                      <p style={{width:"fit-content",fontSize:"1.2rem"}}>AN</p>
-                    </div>
-                  </div>
-                  <div >
-                    <p style={{width:"fit-content",fontSize:"1.5rem"}}>Anuj</p>
-                    <p style={{width:"fit-content",fontSize:"1rem"}}>meeting host</p>
-                  </div>
-                  <div >
-                    <i className='fa-solid fa-thumbtack pin'></i>
-                  </div>
-              </div>
           </div>
           :
-          <div style={styling.subSideWindow}>
-              <div style={styling.msgWindow}>
+          <div className='sub-side-window'>
+              <div className='msgWindow'>
                   {
                   msg.map((e:any,i:number)=>{
                    // console.log("msg map",e)
                     if(e.id===myId)
-                    return  <div style={{...styling.msg}} key={i}>
-                      <div style={{...styling.msgWrapper,...styling.outgoingWrapper}}>
-                        <p style={{...styling.name,width:"fit-content",textAlign:"right",marginLeft:"86%"}}>you</p>
-                        <p style={styling.outgoing}>{e.msg}</p>
+                    return  <div key={i} className='chat-msg'>
+                      <div className='msgWrapper outgoingWrapper'>
+                        <p  className='name' 
+                          style={{
+                          width:"100%",
+                          textAlign:"right",
+                          }} >you</p>
+                        <p className='outgoing'>{e.msg}</p>
                       </div>
                     </div>
                     
                     else
-                    return <div style={styling.msg} key={i}>
-                            <div style={{...styling.msgWrapper,...styling.incomingWrapper}}>
-                              <p style={{...styling.name,width:"fit-content"}}>
+                    return <div key={i} className='chat-msg'> 
+                            <div className='msgWrapper incomingWrapper' >
+                              <p className='name' style={{width:"fit-content"}} >
                                 {e.name}
                               </p>
-                              <p style={styling.incoming}>{e.msg}</p>
+                              <p className='incoming'>{e.msg}</p>
                             </div>
                           </div>
                   }) 
@@ -556,14 +489,16 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
                   <p>hi</p>
                   <p>hi</p> */}
               </div>
-              <div style={styling.inputWrapper}>
+              <div className='input-wrapper'>
                 <input 
+                  
                   style={styling.inputBar} 
                   placeholder='write your message'
                   value={message}
-                  onChange={(e)=>setMessage(e.target.value)}
+                  onChange={(e)=>{msgRef.current=e.target.value;setMessage(e.target.value)}}
+                  ref={ref}
                 />
-                <button style={styling.sendBtn} onClick={()=>handleMessage()}>
+                <button className='send-btn' onClick={()=>handleMessage()}>
                  <i className="fa-solid fa-share"></i>
                 </button>
               </div>
@@ -573,25 +508,26 @@ export function SideWindow({openSideWindow,setOpenSideWindow,messagingOn,setMess
       </div>
     )
 }
-export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}:{openSideWindow:boolean , isMobile:boolean,toggleRmWindow:boolean}){
-  const [largeVideo,setLargeVideo] = useState(null)
-  const largeVideoRef = useRef(null)
-  const [selectedNumber,setSelectedNumber] = useState<number|null>(null)
+export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}
+  :{openSideWindow:boolean , isMobile:boolean,toggleRmWindow:boolean}){
   
-
+  const [selectedNumber,setSelectedNumber] = useState<number|null>(null)
+  //@ts-ignore
+  const {users,usersArrRef,largeVideo,setLargeVideo,largeVideoRef} = useData()
+   
   let number = 3;
   //@ts-ignore
-  const {users} = useData();
+ 
   let styling:any ={
       gridView:{
         width:"49vw",
         height:number>2?"50vh":"100vh",
-        border:"0.1rem solid red"
+        // border:"0.1rem solid red"
       },
       scaledView:{
         flex1:{
           width:isMobile===false?"80%":"100%",
-          border:"0.1rem solid red",
+          // border:"0.1rem solid red",
           display:"flex",
           justifyContent:"center",
           alignItems:"center",
@@ -602,17 +538,17 @@ export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}:{openSideWi
           flexDirection:isMobile===false?"column":"row",
           width:isMobile===false?"20%":"100vw",
           height:isMobile ===false?"100%":"fit-content",
-          border:"0.1rem solid red",
+          //border:"0.1rem solid red",
           overflow:"scroll",
           
-          background:"transparent"
+          background:"gray"
         },
         videoWrapper:{
           // height:"100%",
           
           // width:"100%":"25rem",
           // width:"100%",
-           border:"0.1rem solid red",
+         //  border:"0.1rem solid red",
           margin:"1rem 0",
           // backgroundColor:"gray"
 
@@ -639,25 +575,31 @@ export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}:{openSideWi
     if(users.length===0)
     return ;
     
-  //  console.log("i am users length 2",users.length)
+    //  console.log("i am users length 2",users.length)
     if(users.length===1 && largeVideoRef.current !==users[0]){
      // console.log("i am users inside",users.length)
       largeVideoRef.current = users[0]
-      setLargeVideo(users[0])
-  }
-    else if(users.length>1 && selectedNumber ===null && largeVideoRef.current !==users[1]){
-      largeVideoRef.current = users[1]
-      setLargeVideo(users[1]) 
+      setLargeVideo(largeVideoRef.current)
     }
-
+    //&& largeVideoRef.current !==users[1]
+    else if(users.length>1 && selectedNumber ===null ){
+      largeVideoRef.current = users[users.length-1]
+      setLargeVideo(largeVideoRef.current) 
+    }
+    else if(users.length>1 && selectedNumber !==null && selectedNumber > usersArrRef.current.length-1){
+      //if user left
+      largeVideoRef.current = usersArrRef.current[usersArrRef.current.length-1]
+      setLargeVideo(largeVideoRef.current)
+    }
     else if(users.length>1 && selectedNumber !==null && largeVideoRef.current !==users[selectedNumber]){
       largeVideoRef.current = users[selectedNumber]
       setLargeVideo(users[selectedNumber])
     }
+
   },[users,selectedNumber])
   
   useEffect(()=>{
-   console.log("users changed in mainPage")
+   //console.log("users changed in mainPage")
   },[users])
   useEffect(()=>{
     console.log("isMobile",isMobile)
@@ -681,7 +623,7 @@ export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}:{openSideWi
       flexDirection:isMobile===false?"row":"column",
       height:"90vh",
       zIndex:0,
-      width:isMobile===false ?(openSideWindow===true?"78vw":"88vw"):("100vw")
+      width:isMobile===false ?(openSideWindow===true?"78vw":"98vw"):("100vw")
 
       }}>
 
@@ -692,6 +634,7 @@ export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}:{openSideWi
           {toggleRmWindow===true ? 
             <RmLayout/>
           : 
+          //@ts-ignore
           largeVideo && <DisplayLargerComp e={largeVideo} muted={true} large={true} num={4193} isMobile={isMobile}/>
           }
           {/* {largeVideo && <DisplayLargerComp e={largeVideo} muted={true} large={true} num={4193} isMobile={isMobile}/>} */}
@@ -699,11 +642,11 @@ export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}:{openSideWi
 
       <div style={styling.scaledView.flex2} className='smaller-video-holder'> 
       {/* {users.length>0 && console.log("loggin before render",users)} */}
-        { users.map((e:any,i:number)=>{
+        { users.map((e:any,i:number)=>{ 
          // console.log('triggered',e.id)
-          const randomValue = Math.random()
-          if(e.remove===true){
-            return null
+          const randomValue = Math.random() 
+          if(e.remove===true){  
+            return null 
           }
           if(i==0){
             return <div style={styling.scaledView.videoWrapper} key={i*randomValue}>
@@ -751,7 +694,8 @@ export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}:{openSideWi
   )
 }
 export function RmLayout(){
-  const {cues} = useData()
+  //@ts-ignore
+  const {cues,cueLoading} = useData()
 return (
   <div className='msg-box'>
                 {/* {data && data.map((e:any,i:number)=>{
@@ -769,16 +713,16 @@ return (
                 })} */}
             
 
-            {/* { 
-            msgLoading==true ?
+            { 
+            cueLoading==true ?
             <div className='msg-loader-wrapper'>
                 <img src="https://media.tenor.com/On7kvXhzml4AAAAj/loading-gif.gif" className='msg-loader'/>
             </div>
              :
             null
-            } */}
+            }
             {cues && cues.map((e:any,i:number)=>{
-                return <Msg e={e} key={i}/>
+                return <Msg e={e} key={e.id}/>
             })}
             {/* <Msg e={Data} /> */}
   </div>
@@ -787,17 +731,18 @@ return (
 
 export default function MainPage() {
   const [openSideWindow,setOpenSideWindow] = useState<boolean>(false);
-  const [messagingOn,setMessagingOn] = useState<boolean>(false);
-
+  const [messagingOn,setMessagingOn] = useState<boolean>(true);
+  
+  
   //@ts-ignore
-  const {setRoomId,users,myStream,setMob,roomId,setIsHost,setMyId,isHostRef,normalize,setName} = useData()
+  const {setRoomId,users,myStream,setMob,roomId,setIsHost,setMyId,isHostRef,normalize,setName,setValidUrl,setCustId} = useData()
    const {link} = useParams()
-   const [searchParams,setSearchParams] = useSearchParams()
-   const navigate = useNavigate()
+  // const [searchParams,setSearchParams] = useSearchParams()
+  // const navigate = useNavigate()
    const [toggleVideo,setToggleVideo] = useState(true)
    const [toggleAudio,setToggleAudio] = useState(true)
    const [isMobile,setIsMobile] = useState(false);
-   const [toggleRmWindow,setToggleRmWindow] = useState(false)
+   const [toggleRmWindow,setToggleRmWindow] = useState(false);
   
 
    function diff_minutes(time2:number, time1:number) {
@@ -817,6 +762,7 @@ export default function MainPage() {
   }else{
      
       while(myName.length<2){
+        //@ts-ignore
       myName = prompt("Please enter your name")
 
       if(myName.length<2)
@@ -842,36 +788,42 @@ export default function MainPage() {
   },[])
 
   useEffect(()=>{
-    if(!link)
-    navigate('/#')
+    //if(!link)
+    //navigate('/#')
 
-    let params = new URLSearchParams(link)
-   // console.log('params',setRoomId,params.get('room_id'))
-  //cust id 
-  //room id 
-  //mob 
+   // console.log('i am link',link)
+
+   //@ts-ignore
+    let params = new URL(window.location).searchParams;
+   
+   console.log('params',params.get('room_id')) 
   if(!params.get('room_id') || !params.get('cust_id') || !params.get('mob')){
-    navigate(`/#`)
+   // navigate(`/#`)
+   //window.location.href=`${window.location.href}`
+
+   console.log('redirecting to homepage',`${window.location.host}`)
+   window.location.href = `${window.location.protocol}//${window.location.host}` 
   }
   else{
-   // console.log(link)
-    
+    // console.log(link)
     //console.log(link,params.get('room_id'),params.get('cust_id'),params.get('mob') )
     setRoomId(params.get('room_id'))
     setMob(params.get('mob'))
   }
   
-  },[link])
+  },[])
 
   useEffect(()=>{
-  if(!link || roomId ==='')
+  if(roomId ==='')
   return ;
-
-  let params = new URLSearchParams(link)
+  
+ //@ts-ignore
+ let params = new URL(window.location).searchParams;
   //params.get('cust_id')
-  let tempId =uuidv4()
+  let tempId =params.get('cust_id')
   let tempIsHost = false 
   
+
   if(!localStorage.getItem('created_by_admin')){
     //console.log('u r a general user')
     // setMyId()
@@ -895,8 +847,6 @@ export default function MainPage() {
               tempId = uuidv4()
               tempIsHost = true
             }
-                  
-
             if(diff_minutes(d.getTime() ,e.time)<480)
                 return true ;
             return false;
@@ -914,8 +864,10 @@ export default function MainPage() {
   isHostRef.current = tempIsHost
   setIsHost(tempIsHost)
   setMyId(tempId)
+ // setValidUrl('namma')
+  setCustId(params.get('cust_id'))
 
-  },[link,roomId])
+  },[roomId])
 
   return (
     <div style={{
@@ -924,7 +876,7 @@ export default function MainPage() {
       height:"100vh",
       position:"relative",
       backgroundColor:'#636363',
-      border:"0.3rem solid tomato",
+      // border:"0.3rem solid tomato",
 
       }}>
     
@@ -932,7 +884,7 @@ export default function MainPage() {
       openSideWindow={openSideWindow} 
       isMobile={isMobile} 
       toggleRmWindow={toggleRmWindow} 
-      
+     
       />
     <SideWindow 
       openSideWindow={openSideWindow} 
@@ -950,6 +902,7 @@ export default function MainPage() {
     isMobile={isMobile}
     toggleRmWindow={toggleRmWindow}
     setToggleRmWindow={setToggleRmWindow}
+    link={link}
     />
     
     </div>

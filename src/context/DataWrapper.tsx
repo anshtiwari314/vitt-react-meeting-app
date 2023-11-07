@@ -11,6 +11,7 @@ export function useData(){
 }
 type users = {
     id:string,
+    peer2Id:string,
     stream:MediaStream|Object,
     isAdmin:boolean,
     isAudioStream:boolean,
@@ -20,13 +21,16 @@ type users = {
     remove:boolean,
     name:string,
     cameraStatus:boolean,
-    microphoneStatus:boolean  
+    microphoneStatus:boolean,
+    isScreenSharingEnabled:boolean,
+    containsScreenStream:boolean
 }
 
 export default function DataWrapper({children}:{children:React.ReactNode}) {
 
     let initialUser = {
         id:'',
+        peer2Id:'',
         name:'',
         stream:{},
         isAdmin:false,
@@ -36,7 +40,9 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         mob:'',
         remove:false,
         cameraStatus:true,
-        microphoneStatus:true 
+        microphoneStatus:true ,
+        isScreenSharingEnabled:false,
+        containsScreenStream:false
     }
     let initialMsgArr = [
         {
@@ -54,12 +60,20 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
     const [socket2,setSocket2] = useState<any>(null)
     const [roomId ,setRoomId] = useState<string>('')
     const [myId,setMyId] = useState<string>('')
+    const [custId,setCustId] = useState<string>('')
     const [peer,setPeer] = useState<Peer|null>(null)
     const firstTimeConnectRef = useRef<boolean>(true)
     const [users,setUsers] = useState<users[]>([]);
     const [myStream,setMyStream] = useState<MediaStream|null>(null);
+    
     const peersObjRef = useRef<any>({});
     const peersArrRef = useRef<string[]>([]);
+
+    const [peer2,setPeer2] = useState<Peer|null>(null)
+    const peer2Ref = useRef<any>(null)
+    const peers2ObjRef = useRef<any>({});
+    const peers2ArrRef = useRef<string[]>([]);
+
     let usersRef = useRef<users[]>([])
     let users2Ref = useRef<users[]>([])
     let tempData = useRef<users[]>([])
@@ -70,17 +84,29 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
     let isHostRef = useRef<null|boolean>(null)
     let [mob,setMob] = useState('')
     const [cues,setCues] = useState([])
-    const [msg,setMsg] = useState(initialMsgArr);
+
+    const [msg,setMsg] = useState([]);
+    const [cueLoading,setCueLoading] = useState(false)
+    const msgArrRef = useRef([])
+
     const [name,setName] = useState('')
     const [cameraToggle,setCameraToggle ] = useState(true)
     const cameraTogglerRef = useRef(true)
     const [microphoneToggle,setMicroPhoneToggle] = useState(true)
     const microphoneToggleRef = useRef(true)
+    const [screenSharing,setScreenSharing] = useState(false);
+    const screenStreamRef = useRef(null)
     const vadEffectRender = useRef(0)
     const vadFlag = useRef(false)
     const adminMediaRecorderStatus = useRef(false)
     const clientMediaRecorderStatus = useRef(false)
     const clientTranscriptionMediaRecorderStatus = useRef(false)
+    const [validUrl,setValidUrl] = useState('')
+
+    const [largeVideo,setLargeVideo] = useState(null)
+    const largeVideoRef = useRef(null)
+
+
     const adminUrl = `https://tso4smyf1j.execute-api.ap-south-1.amazonaws.com/test/transcription-2way-clientaudio`;
     
     //
@@ -113,6 +139,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
             console.log('inside send to server',data);
            
             let date = new Date()
+            setCueLoading(true)
             fetch(url,{
                 method:'POST',
                 headers:{
@@ -121,9 +148,11 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
                 },
                 body:JSON.stringify({
                     uid:data.id,
+                    sessionid:data.id,
                     roomid:data.roomId,
                     isadmin:data.isAdmin, 
                     mob:data.mob,
+                    init:data.init,
                     //@ts-ignore
                     audiomessage:base64data.split(',')[1],
                     timeStamp:`${date.toLocaleDateString()} ${date.toLocaleTimeString()}:${date.getMilliseconds()}`
@@ -372,10 +401,20 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
                     audio:true
                 })
     }    
-
+    function gettingScreenStream(){
+        return navigator.mediaDevices.getDisplayMedia({
+            video: {
+                //@ts-ignore
+                cursor: "always"
+            },
+            audio:true 
+            
+        })
+    }
     
     function handleData(data:any){
-        //setMsgLoading(false)
+        setCueLoading(false)
+        //@ts-ignore
         let arr:Data[] =[]
         //@ts-ignore
         let obj:Data = {}
@@ -385,7 +424,9 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
             return ;
         }
         if(data?.audiourl!=null){
+            //@ts-ignore
             audioUrlRef.current = data.audiourl
+            //@ts-ignore
             setAudioUrlFlag(prev=>!prev)
             //setAudioUrl('https://files.gospeljingle.com/uploads/music/2023/04/Taylor_Swift_-_August.mp3')
         }
@@ -481,6 +522,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
            
         } 
        //console.log(arr)
+       //@ts-ignore
        setCues(prev=>[...arr,...prev])
        
     }
@@ -500,14 +542,15 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
     
 
     useEffect( ()=>{
-        handleData(Data)
-        handleData(Data)
-        handleData(Data)
-        handleData(Data)
-        handleData(Data)
-        if(socket2===null || myId==='')
+        // handleData(Data)
+        // handleData(Data)
+        // handleData(Data)
+        // handleData(Data)
+        // handleData(Data)
+        if(socket2===null || myId==='' || custId==='' || isHost===null)
         return ;
 
+        //console.log("socket2 useEffect execution",socket2)
         function receiveData(data:any){
             
                 console.log(data);
@@ -517,18 +560,18 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
                 // }
                 console.log(data.sessionid ===myId,data.sessionid,myId)
     
-                if(data.id=== myId){
-                handleData(data)
+               if(data.sessionid===custId && isHost===true){
+                
+                    handleData(data)
                // handleAudio(data.speech_bytes,data.file_name)
                 }
-            
         }
-        socket.on("receive-data",receiveData)
 
+        socket2.on("receive-data",receiveData)
         return ()=>{
-            socket.off("receive-data",receiveData)
+            socket2.off("receive-data",receiveData)
         }
-    },[myId,socket2])
+    },[myId,custId,socket2,isHost])
 
     useEffect(()=>{
         if(myId==='')
@@ -536,6 +579,8 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         //https://vitt-jarvis-node-production.up.railway.app/
       let tempSocket =  io('https://vitt-jarvis-node-production.up.railway.app/')
       let tempSocket2 = io('https://vitt-ai-request-broadcaster-production.up.railway.app')
+
+      let tempPeer = new Peer(uuidv4())
      // let tempId = uuidv4()
 
      // let peer = new Peer(myId)
@@ -543,11 +588,18 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
       
       setSocket(tempSocket)
       setSocket2(tempSocket2)
-
+      peer2Ref.current = tempPeer
+      setPeer2(tempPeer)
       //setMyId(myId)
      // console.log('going to set peer')
      // setPeer(peer)
-
+        return ()=>{
+            
+            // setSocket(null)
+            // setSocket2(null)
+            // setPeer(null)
+            // setPeer(null)
+        }
     },[myId])
 
     // useEffect(()=>{
@@ -558,10 +610,19 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
     
     
     useEffect(()=>{
+        let intervalId = setInterval(()=>{
+            
+            //after 4 minute if no one is joined refresh
+            if(peersArrRef.current.length===0)
+            window.location.reload()
+            else clearInterval(intervalId)
+            
+        },1000*60*4)
+
         let id = setInterval(()=>{
 
             if(usersFlag.current>0){
-            console.log(usersArrRef.current)
+            console.log(usersArrRef.current,peersArrRef,peersObjRef)
             setUsers(prev=>[...usersArrRef.current])
             //setUsers(usersArrRef.current)
             usersFlag.current--;
@@ -586,7 +647,10 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
             // }
 
         },5000)
-        return ()=>clearInterval(id)
+        return ()=>{
+            clearInterval(id)
+            clearInterval(intervalId)
+        }
     },[])
 
     useEffect(()=>{
@@ -637,6 +701,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         if(socket===null || usersArrRef.current.length===0 )
         return ;
         // ||cameraTogglerRef.current===cameraToggle
+        //@ts-ignore
         console.log(usersArrRef.current[0].stream.getVideoTracks()[0].enabled=cameraToggle)
         //console.log("videostream can be modified")
 
@@ -653,7 +718,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         //this code is responsible for enable & disable audioStream 
         if(socket===null || usersArrRef.current.length===0)
         return ;
-        
+        //@ts-ignore
         console.log(usersArrRef.current[0].stream.getAudioTracks()[0].enabled=microphoneToggle)
         //console.log("audioStream can be modified")
 
@@ -664,6 +729,134 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         console.log("myData modified",usersArrRef.current)
     },[socket,microphoneToggle])
 
+    // function ShareScreentoOneUser(id){
+
+    //     gettingScreenStream().then(screenStream=>{
+    //         //@ts-ignore
+    //         //tempStream = stream
+
+    //         //add screen sharing as new user 
+    //         let tempUser = {...initialUser} 
+    //         tempUser.id = uuidv4()
+    //         tempUser.containsScreenStream =true
+    //         tempUser.cameraStatus = true 
+    //         tempUser.isLoading = false
+    //         tempUser.name = usersArrRef.current[0].name 
+    //         tempUser.isScreenSharingEnabled = false 
+    //         tempUser.microphoneStatus = false 
+    //         tempUser.stream = screenStream
+    //         tempUser.peer2Id = peer2.id
+
+
+    //         //send this tempUsr info to every joined peer
+    //         socket.emit('screen-share-transmitter',{...tempUser,isLoading:true})
+
+            
+    //         //make connection to every other user 
+    //         setTimeout(()=>{
+    //             peers2ArrRef.current.map((peerId)=>{
+    //                 ShareScreenToUser(screenStream,peerId)
+    //             })
+    //         },2000)
+            
+            
+    //     }).catch(err=>{
+    //         console.log("error at getting screen stream",err)
+    //     })
+    // }
+
+    useEffect(()=>{
+        if(myStream===null||socket===null|| peer2===null || usersArrRef.current.length===0)
+        return ;
+
+        //if both have same, nothing changed 
+        if(screenSharing === usersArrRef.current[0].isScreenSharingEnabled)
+        return ;
+
+        if(screenSharing===false){
+            console.log("screen sharing if")
+            
+            //stop screen sharing
+            usersArrRef.current[0].isScreenSharingEnabled=false
+            screenStreamRef.current = null
+
+            console.log("usersArrRef inside screen sharing useEffect",usersArrRef.current)
+            
+            let [first,second,...rest] = usersArrRef.current
+
+            //notify others that u stopped screen share 
+            socket.emit('screen-share-end-transmitter',{videoId:second.id,peerId:peer2.id})
+
+            //stopping second track 
+
+            //@ts-ignore
+            let tracks = second.stream.getTracks()
+            //@ts-ignore
+            tracks.forEach(track=>track.stop())
+            
+            Object.keys(peers2ObjRef.current).map((id:string)=>{
+                //close call from peer2ObjRef
+                peers2ObjRef.current[id].call.close()
+            })
+            //do not reset peer2ArrRef beacuse it contains peers2 peerId 
+
+            //reset from peer2ObjRef 
+            peers2ObjRef.current={}
+
+            //remove second from usersList 
+            usersArrRef.current = [first,...rest]
+            setUsers(prev=>[...usersArrRef.current])
+        }
+        else {
+            console.log("screen sharing else")
+            //start screen sharing 
+            //let tempStream ={}
+            gettingScreenStream().then(screenStream=>{
+                //@ts-ignore
+                screenStreamRef.current = screenStream
+    
+                //add screen sharing as new user 
+                let tempUser = {...initialUser} 
+                tempUser.id = uuidv4()
+                tempUser.containsScreenStream =true
+                tempUser.cameraStatus = true 
+                tempUser.isLoading = false
+                tempUser.name = usersArrRef.current[0].name 
+                tempUser.isScreenSharingEnabled = false 
+                tempUser.microphoneStatus = true
+                tempUser.stream = screenStream
+                tempUser.peer2Id = peer2.id
+                tempUser.isAudioStream=false
+
+                usersArrRef.current[0].isScreenSharingEnabled=true
+                //putting this user after first position 
+    
+                let [first,...restData]= usersArrRef.current 
+                usersArrRef.current = [first,tempUser,...restData]
+
+
+
+                setUsers(prev=>[...usersArrRef.current])
+    
+                //send this tempUsr info to every joined peer
+                socket.emit('screen-share-transmitter',{...tempUser,isLoading:true})
+    
+                
+                //make connection to every other user 
+                setTimeout(()=>{
+                    peers2ArrRef.current.map((peerId)=>{
+                        ShareScreenToUser(screenStream,peerId)
+                    })
+                },2000)
+                
+                
+            }).catch(err=>{
+                console.log("error at getting screen stream",err)
+            })
+
+            
+        }
+    },[myStream,socket,screenSharing,peer2])
 
     useEffect(()=>{
         if(peer ===null)
@@ -708,6 +901,43 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         return ()=>clearTimeout(timeOutId)
     },[socket,myId])
 
+    function removeUserFromMainPage(userId:string){
+        //get peer2 id of user just disconnected 
+        let peer2Id:null|string=null
+            
+            usersArrRef.current.map((e)=>{
+                if(e.id===userId)
+                peer2Id=e.peer2Id
+            })
+            
+            //disconnect video or audio call
+            if(peersObjRef.current.hasOwnProperty(userId)){
+            peersObjRef.current[userId].call.close()
+            delete peersObjRef.current[userId]
+            }
+
+            // disconnect screen sharing if happening 
+            if(peers2ObjRef.current.hasOwnProperty(peer2Id)){
+                //@ts-ignore
+            peers2ObjRef.current[peer2Id].call.close()
+            //@ts-ignore
+            delete peers2ObjRef.current[peer2Id]
+            }
+
+            //need to modify peersArrRef
+            removeUserFromPeersArr(userId)
+            //need to modify peers2ArrRef
+            //@ts-ignore
+            removeUserFromPeers2Arr(peer2Id)
+
+
+            //modifying usersArrRef by removing screen Sharing Video
+            //modifying usersArrRef by removing video  
+            usersArrRef.current= usersArrRef.current.filter((e,i)=>e.peer2Id !== peer2Id)
+            setUsers(prev=>[...usersArrRef.current])
+            console.log("users changed due to user left",userId,peer2Id,usersArrRef)
+            
+    }
     useEffect(()=>{
         if(socket === null || myStream===null ||myId==='')
         return ;
@@ -722,11 +952,11 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
          if(firstTimeConnectRef.current === true){
             //console.log('1st connect triggered');   
             
-         }
+        }
          else {
          console.log('2nd connect triggered');
          socket.emit('join-room',roomId,myId)
-             }
+        }
          
        }
 
@@ -735,13 +965,8 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
        }
        function userDisconnect(userId:string){
         
-            //console.log('user-disconnected',userId)
-            // let tempUsers= usersArrRef.current.filter((e,i)=>e.id !== userId)
-            // usersArrRef.current = tempUsers
-            
-            if(peersObjRef.current.hasOwnProperty(userId))
-            peersObjRef.current[userId].call.close()
-        
+            removeUserFromMainPage(userId)   
+             
        }
        socket.on('connect',connected)
 
@@ -864,96 +1089,100 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
     function removeUserFromPeersArr(userId:string){
         peersArrRef.current=peersArrRef.current.filter(id=>id !==userId)
     }
-
-    async function connectToNewUser(stream:MediaStream,newUserId:string){
-        console.log(peer,socket,stream,usersArrRef.current)
+    function removeUserFromPeers2Arr(userId:string){
+        peers2ArrRef.current=peers2ArrRef.current.filter(id=>id !==userId)
+    }
+    async function ShareScreenToUser(stream:MediaStream,newUserId:string){
+        //console.log(socket,stream,usersArrRef.current)
 
         //socket.emit('connected-user-data',{...usersArrRef.current[0],toPeer:newUserId,isLoading:true})
             let intervalId:number
 
-            //peer?.call(newUserId,stream)
-            let call = peer?.call(newUserId,stream);
-            //console.log('call after await ',call);
-            //call=undefined
+            let call = peer2?.call(newUserId,stream);
             let count = 0
-            //call undefined sometimes 
+            if(!call){
+                console.log("while triggers inside shareScreen",++count)
+                call = peer2?.call(newUserId,stream)
+            }
+           console.log('after-a-loop-made-in-shareScreen',call,newUserId,stream)
+           
+            try{
+            //if call undefined 
+//            if(peers2ArrRef.current.includes(call.peer) ===false)
+//            peers2ArrRef.current.push(call.peer)
+
+//@ts-ignore
+            peers2ObjRef.current[call.peer] = {'call':call}
             
-            while(!call){
-                //console.log("while triggers",++count)
+            call?.on('close',()=>{
+                console.log('close event fired 1 inside shareScreen fn')
+                //@ts-ignore
+                // let tempUsers= usersArrRef.current.filter((e,i)=>e.id !== call.peer)
+                // // let tempUsers= usersArrRef.current.map((e,i)=>{
+                // //     if(e.id === call.peer){
+                // //         e.remove = true ;
+                // //         e.isLoading = true; 
+                // //         return e;
+                // //     }else return e
+
+                // // })
+                
+                // usersArrRef.current = tempUsers
+                // usersFlag.current = 2
+
+                // //@ts-ignore
+                // removeUserFromPeers2Arr(call.peer)
+                // //@ts-ignore
+                // delete peers2ObjRef.current[call.peer]
+
+                // clearInterval(intervalId)
+
+            })
+
+            }catch(err){
+                console.log(err)
+            }
+    }
+    async function connectToNewUser(stream:MediaStream,newUserId:string){
+        console.log(socket,stream,usersArrRef.current)
+
+        //socket.emit('connected-user-data',{...usersArrRef.current[0],toPeer:newUserId,isLoading:true})
+            let intervalId:number
+
+            let call = peer?.call(newUserId,stream);
+            let count = 0
+            if(!call){
+                console.log("while triggers",++count)
                 call = peer?.call(newUserId,stream)
             }
+           //console.log('after-a-while-loop-made',call,newUserId,stream)
            
-
-           // console.log('after-a-while-loop-made',call,newUserId,stream,peer)
             try{
             //if call undefined 
             
-            call?.on('stream',(userVideoStream)=>{
-                //@ts-ignore
-                console.log("includes 1st call peer")
-                //@ts-ignore
-                peersObjRef.current[call.peer] = {'call':call}
-
-                //if websocket connect first 
-                console.log('peersArray',isUserAvailable(call.peer),peersArrRef.current)
-
-                    //@ts-ignore
-                        
-                    console.log('getting video stream',userVideoStream)
-                    
-                    // changing that element with original stream
-                    for(let i=0;i<usersArrRef.current.length;i++){
-                        //@ts-ignore
-                        if(usersArrRef.current[i].id===call.peer){
-                            
-                            usersArrRef.current[i] = {...usersArrRef.current[i],stream:userVideoStream,isLoading:false}
-                            usersFlag.current = 2
-
-                            console.log('isHostRef 1',isHostRef.current)
-                            if(isHostRef.current===true){
-                                //let url = `https://19vnck5aw8.execute-api.ap-south-1.amazonaws.com/Prod/save-clientaudio`
-                                
-                                // sendStreamToServer(userVideoStream,usersArrRef.current[i],4000,adminClientUrl)
-                                // intervalId = setInterval(()=>{  
-                                //     console.log(`reply set interval triggred 1`,userVideoStream)        
-                                //      //   adminRecordingWithMeta(oldUserVideoStream,false,url2,4000,"stream 1")
-                                     
-                                //      sendStreamToServer(userVideoStream,usersArrRef.current[i],4000,adminClientUrl)
-                                //     },4000)
-
-                            }
-                            break;
-                        }
-                    }
-                    
-                    console.log('length 1',usersArrRef.current.length) 
-                
-                
-            })
+           
             call?.on('close',()=>{
                 console.log('close event fired 1')
                 //@ts-ignore
-                let tempUsers= usersArrRef.current.filter((e,i)=>e.id !== call.peer)
-                // let tempUsers= usersArrRef.current.map((e,i)=>{
-                //     if(e.id === call.peer){
-                //         e.remove = true ;
-                //         e.isLoading = true; 
-                //         return e;
-                //     }else return e
+                // let tempUsers= usersArrRef.current.filter((e,i)=>e.id !== call.peer)
+                // // let tempUsers= usersArrRef.current.map((e,i)=>{
+                // //     if(e.id === call.peer){
+                // //         e.remove = true ;
+                // //         e.isLoading = true; 
+                // //         return e;
+                // //     }else return e
 
-                // })
+                // // })
                 
-                usersArrRef.current = tempUsers
-                usersFlag.current = 2
+                // usersArrRef.current = tempUsers
+                // usersFlag.current = 2
 
-                //@ts-ignore
-                removeUserFromPeersArr(call.peer)
-                //@ts-ignore
-                delete peersObjRef.current[call.peer]
+                // //@ts-ignore
+                // removeUserFromPeersArr(call.peer)
+                // //@ts-ignore
+                // delete peersObjRef.current[call.peer]
 
-                
-
-                clearInterval(intervalId)
+                // clearInterval(intervalId)
 
             })
 
@@ -963,99 +1192,83 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
     }
 
     useEffect(()=>{
-        if(socket === null || myStream===null ||peer===null)
+        if(socket === null || myStream===null ||peer===null || peer2===null)
         return ;
        
         function newUser(userId:string){
+            
+            if(peersArrRef.current.includes(userId)===true)
+            return ;
+
+            peersArrRef.current.push(userId)
+
             console.log('user-connected',userId)
             //send my stream to this user 
             
             //@ts-ignore
             console.log(users)
-           //@ts-ignore
 
            //send this data to new user before making rtc connection
-           socket.emit('connected-user-data',{...usersArrRef.current[0],toPeer:userId,isLoading:true,count:1})
+           //@ts-ignore
+           socket.emit('connected-user-data',{...usersArrRef.current[0],toPeer:userId,peer2Id:peer2.id,isLoading:true,count:1})
          
-
+           console.log('user-connected-emitted-socket',userId)
            //@ts-ignore
            // connectToNewUser(myStream,userId)
         }
 
-        function removeUser(userId:string){
-            console.log('remove user triggered',userId)
-            // let tempUsers= usersArrRef.current.filter((e,i)=>e.id !== userId)
-            // console.log('tab-close',tempUsers)
-            // usersArrRef.current = tempUsers
-            
-            //setUsers(tempUsers)
-        }
-        
-        function modifyingUser(data:any){
+        function removeUser(){}
 
+        function userMovedToLeavePage(userId:string){
+            console.log('user to leave triggered',userId)
+            removeUserFromMainPage(userId)
+        }
+        function sendUserData(data:any){
+            console.log("send user triggered",data)
             if(data.count!==0){
                 //new user data 
                 console.log(data,data.count!==0)
+                //@ts-ignore
+                socket.emit('connected-user-data',{...usersArrRef.current[0],toPeer:data.id,peer2Id:peer2.id,isLoading:true,count:--data.count})
                 
-                socket.emit('connected-user-data',{...usersArrRef.current[0],toPeer:data.id,isLoading:true,count:--data.count})
+                let timeoutId = setTimeout(()=>{
+                    //@ts-ignore
+                    connectToNewUser(myStream,data.id)
+                    clearTimeout(timeoutId)
+                },5000)
             }else{
                 //@ts-ignore
+                
+                socket.emit('user-chat-transmitter',{chats:msgArrRef.current,toPeer:data.id,from:id})
+                //@ts-ignore
                 connectToNewUser(myStream,data.id)
+                
+                //share screen if enabled
+                if(usersArrRef.current[0].isScreenSharingEnabled===true){
+                    socket.emit('single-screen-share-transmitter',{...usersArrRef.current[1],toPeer:data.id,isLoading:true})
+                    //@ts-ignore
+                    console.log("before exec ShareScreenToUser",screenStreamRef,data.peer2Id)
+                    setTimeout(()=>{
+                        //@ts-ignore
+                        ShareScreenToUser(screenStreamRef.current,data.peer2Id)
+                    },3000)
+                    
+                } 
+                
             }
-                peersArrRef.current.push(data.id)
-                usersArrRef.current.push(data)
-                console.log('connected-usr-data',data)
+                peers2ArrRef.current.push(data.peer2Id) 
+
+                if(peersArrRef.current.includes(data.id)===false)
+                peersArrRef.current.push(data.id) 
                 
-                setUsers(prev=>[...prev,data])
-            //console.log('peersArray modify',isUserAvailable(data.id),peersArrRef.current)
-            
-        //   if(isUserAvailable(data.id)===false){
-        //       //if new user 
-        //       //websocket connect first
-        //     peersArrRef.current.push(data.id)
-        //     console.log('connected-usr-data',data)
-        //     usersArrRef.current.push(data)
-        //     setUsers(prev=>[...prev,data])
-        //     }
-        //     else {
-        //     // if user already there 
-        //     //peerjs connected first
-        //     console.log('connected-usr-else',data)
-
-        //     for(let i=0;i<usersArrRef.current.length;i++){
-        //         if(usersArrRef.current[i].id===data.id){
+                usersArrRef.current.push(data) 
+                console.log('connected-usr-data',data) 
                 
-        //         usersArrRef.current[i] = {...data,stream:usersArrRef.current[i].stream,isLoading:false}
-        //         usersFlag.current = 2
-
-        //         if(isHostRef.current===true){
-        //             let url = `https://19vnck5aw8.execute-api.ap-south-1.amazonaws.com/Prod/save-clientaudio`
-                   
-        //             //@ts-ignore
-        //         //    sendStreamToServer(usersArrRef.current[i].stream,usersArrRef.current[i],4000,url)
-
-        //         //     let intervalId = setInterval(()=>{  
-        //         //         if(!usersArrRef.current[i]){
-        //         //             console.log('clear interval triggered',intervalId)
-        //         //             clearInterval(intervalId)
-        //         //         }
-        //         //         console.log(`reply set interval triggred 2 inside connected -user-else`,usersArrRef.current[i].stream)        
-        //         //             //@ts-ignore
-        //         //             sendStreamToServer(usersArrRef.current[i].stream,usersArrRef.current[i],4000,url)
-        //         //         },4000)
-        //         }
-        //         break;
-        //         }
-        //      }
-        //      }
-
-
-            
+                setUsers(prev=>[...prev,data]) 
         }
         function executeBeforeTabClose(e:Event){
-            socket.emit('tab-close',myId)
+           
         }
-
         function cameraToggle(data:any){
             console.log("camera toggle",data)
 
@@ -1078,102 +1291,187 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
                 }
                     return e
                 }) 
+            
             setUsers(prev=>[...usersArrRef.current])
             console.log('new data',usersArrRef.current)
         }
+        function chatsReceiver(data:any){
+            //console.log("chats receiver",data)
+
+            //@ts-ignore
+            msgArrRef.current = [...data.chats,...msgArrRef.current]
+            setMsg(prev=>[...msgArrRef.current])
+            socket.off('user-chat-receiver',chatsReceiver)
+        }
+        function screenShareDataReceiver(data:any){
+            console.log("screen share data receiver",data)
+
+            //create new user in users 
+            //peers2ArrRef.current.push(data.id)
+            usersArrRef.current.push(data)
+            setUsers(prev=>[...usersArrRef.current])
+            
+        }
+        function stopScreenReceiving(data:any){
+            //remove screen sharing user 
+           // removeUserFromPeers2Arr(id)
+
+            //remove screen from peersObj2Ref 
+
+            if(usersArrRef.current[0].isScreenSharingEnabled===false && peers2ObjRef.current.hasOwnProperty(data.peerId)){
+                // if my screen sharing is false then close the connection with other users 
+                peers2ObjRef.current[data.peerId].call.close()
+                delete peers2ObjRef.current[data.peerId]
+            }
+           
+            console.log('from inside stopScreenReceiving',peers2ObjRef,peers2ArrRef)
+            //modify usersArrRef 
+            usersArrRef.current = usersArrRef.current.filter(e=>e.id!==data.videoId)
+            //applied change immediately 
+            setUsers(prev=>[...usersArrRef.current])
+        }
+        function singleMsgReceiver(data:any){
+            console.log("msg receiver",data)
+            //@ts-ignore
+            msgArrRef.current = [...msgArrRef.current,data]
+            setMsg(prev=>[...msgArrRef.current])
+        }
+        function cueLoadingReceiver(data:any){
+            setCueLoading(data.toggle)
+        }
+        socket.on('receive-msg',singleMsgReceiver)
         socket.on('tab-close-remove-video',removeUser)
-        socket.on('receive-connected-user-data',modifyingUser)
+        socket.on('to-leave-page-receiver',userMovedToLeavePage)
+        socket.on('receive-connected-user-data',sendUserData)
         socket.on('user-connected',newUser)
         socket.on('camera-toggle-receiver',cameraToggle)
         socket.on('microphone-toggle-receiver',microphoneToggle)
+        socket.on('user-chat-receiver',chatsReceiver)
+        socket.on('screen-share-end-receiver',stopScreenReceiving)
+        socket.on('screen-share-receiver',screenShareDataReceiver)
+        socket.on('single-screen-share-receiver',screenShareDataReceiver)
+        socket.on('cue-loading-receiver',cueLoadingReceiver)
         let id= window.addEventListener('beforeunload',executeBeforeTabClose,{capture:true})
 
         return ()=>{
             socket.off('user-connected',newUser)
+            socket.off('receive-msg',singleMsgReceiver)
+            socket.off('to-leave-page-receiver',userMovedToLeavePage)
             window.removeEventListener('beforeunload',executeBeforeTabClose,{capture:true})
             socket.off('tab-close-remove-video',removeUser)
-            socket.off('receive-connected-user-data',modifyingUser)
+            socket.off('receive-connected-user-data',sendUserData)
             socket.off('camera-toggle-receiver',cameraToggle)
-            socket.off('microphone-toggle-receiver',cameraToggle)
+            socket.off('microphone-toggle-receiver',microphoneToggle)
+            socket.off('user-chat-receiver',chatsReceiver)
+            socket.off('screen-share-end-receiver',stopScreenReceiving)
+            socket.off('screen-share-receiver',screenShareDataReceiver)
+            socket.off('cue-loading-receiver',cueLoadingReceiver)
+            socket.off('single-screen-share-receiver',screenShareDataReceiver)
         }
-    },[socket,myStream,peer])
+    },[socket,myStream,peer,peer2])
 
     useEffect(()=>{
-        if(peer===null || socket === null || myId==='' || roomId==='' ||myStream===null)
+        if(peer===null ||peer2===null || socket === null || myId==='' || roomId==='' ||myStream===null)
         return ;
         
 
         console.log('triggering peer fn',peer,myStream)
         let id:number;
-       
         
-        function reply(call:any){
+        function peerReply2(call:any){
             console.log("replying trigerred")
            // socket.emit('connected-user-data',{...usersArrRef.current[0],toPeer:call.peer,isLoading:true})
             let intervalId:number 
-            call.answer(myStream)
-            console.log('after-a-call-answered',call,myStream)
+            call.answer()
+            console.log('after-a-call-answered 2',call,myStream)
 
             call.on('stream',(userVideoStream:MediaStream)=>{
                 //@ts-ignore
-                peersObjRef.current[call.peer] = {'call':call}
-
-                console.log('peersArray2',isUserAvailable(call.peer),peersArrRef.current)
-
-                //if websocket connect first 
-                    //@ts-ignore
-                    console.log('2nd getting stream',userVideoStream,call.peer)
-                    
-                    for(let i=0;i<usersArrRef.current.length;i++){
-
-                        if(usersArrRef.current[i].id===call.peer){
-                        usersArrRef.current[i] = {...usersArrRef.current[i],stream:userVideoStream,isLoading:false}
-                        
-                        usersFlag.current = 2
-
-                        console.log('isHostRef 2',isHostRef.current)
-                        if(isHostRef.current===true){
-                            //let url = `https://19vnck5aw8.execute-api.ap-south-1.amazonaws.com/Prod/save-clientaudio`
-                            
-                            // sendStreamToServer(userVideoStream,usersArrRef.current[i],4000,adminClientUrl)
-
-                            // intervalId = setInterval(()=>{  
-                            //     console.log(`reply set interval triggred 2`,userVideoStream)        
-                            //      //   adminRecordingWithMeta(oldUserVideoStream,false,url2,4000,"stream 1")
-                                 
-                            //      sendStreamToServer(userVideoStream,usersArrRef.current[i],4000,adminClientUrl)
-                            //     },4000)
-                    
-                            }
-                        break;
-                        }
-                        
-                    }
-                    //if peerjs connections happens before the data from websocket came 
-                    
-                    console.log('length 2',usersArrRef.current.length)
                 
- 
+                console.log('2nd getting screen stream 2',userVideoStream,call.peer)
+
+                peers2ObjRef.current[call.peer] = {'call':call}
+                
+                for(let i=0;i<usersArrRef.current.length;i++){
+
+                    if(usersArrRef.current[i].peer2Id===call.peer && usersArrRef.current[i].containsScreenStream===true){
+                    usersArrRef.current[i] = {...usersArrRef.current[i],stream:userVideoStream,isLoading:false}
+                    
+                    usersFlag.current = 2   
+                }}
+
+                console.log('peersArray2',isUserAvailable(call.peer),call.peer,peers2ArrRef.current,peers2ObjRef.current,call.peer) 
             })
+
             call.on('close',()=>{
                 console.log('close event fired 2')
                 
                 //modifying users
-                let tempUsers= usersArrRef.current.filter((e,i)=>e.id !== call.peer)
-                usersArrRef.current = tempUsers
-                usersFlag.current = 2
+
+                // let tempUsers= usersArrRef.current.filter((e,i)=>e.id !== call.peer)
+                // usersArrRef.current = tempUsers
+                // usersFlag.current = 2
 
                 //removing from peersArrRef
-                removeUserFromPeersArr(call.peer)
+                // removeUserFromPeersArr(call.peer)
+                // removeUserFromPeers2Arr(call.peer)
 
                 //removing call from peersObjRef
-                delete peersObjRef.current[call.peer]
-        
-                if(intervalId) clearInterval(intervalId)
+                // delete peersObjRef.current[call.peer]
+                // delete peers2ObjRef.current[call.peer]
+
+                
             })
         }
+        function reply(call:any){
+            console.log("replying trigerred")
+           // socket.emit('connected-user-data',{...usersArrRef.current[0],toPeer:call.peer,isLoading:true})
+            let intervalId:number 
+            call.answer()
+            console.log('after-a-call-answered',call,myStream)
 
-        
+            call.on('stream',(userVideoStream:MediaStream)=>{
+                //@ts-ignore
+                
+                console.log('2nd getting stream',userVideoStream,call.peer)
+   
+                //if data is present at peersArrRef then is normal video or audio stream
+                    peersObjRef.current[call.peer] = {'call':call}
+               
+                //if data is present at peers2ArrRef then it is screen sharing connection 
+               
+
+                for(let i=0;i<usersArrRef.current.length;i++){
+
+                    if(usersArrRef.current[i].id===call.peer){
+                    usersArrRef.current[i] = {...usersArrRef.current[i],stream:userVideoStream,isLoading:false}
+                    
+                    usersFlag.current = 2   
+                }}
+
+                console.log('peersArray2',isUserAvailable(call.peer),call.peer,peersArrRef.current,peersObjRef.current,call.peer) 
+            })
+
+            call.on('close',()=>{
+                console.log('close event fired 2')
+                
+                //modifying users
+                // let tempUsers= usersArrRef.current.filter((e,i)=>e.id !== call.peer)
+                // usersArrRef.current = tempUsers
+                // usersFlag.current = 2
+
+                // //removing from peersArrRef
+                // removeUserFromPeersArr(call.peer)
+                // removeUserFromPeers2Arr(call.peer)
+
+                // //removing call from peersObjRef
+                // delete peersObjRef.current[call.peer]
+                // delete peers2ObjRef.current[call.peer]
+
+                if(intervalId) clearInterval(intervalId)
+            })
+
+        }
 
         console.log('peer open useEffect')
         function onOpen(){
@@ -1190,6 +1488,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         }
 
         peer.on('call',reply)
+        peer2.on('call',peerReply2)
         peer.on('open',onOpen)
         peer.on("connection",onConnection);
         
@@ -1198,15 +1497,16 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         // },5000)
         return ()=>{
             peer.off('call',reply)
+            peer2.off('call',peerReply2)
             peer.off('open',onOpen)
             peer.off('connection',onConnection)
             
         }
-    },[peer,socket,roomId,myId,myStream])
+    },[peer,peer2,socket,roomId,myId,myStream])
 
 
     //vad code here 
-    function sendVadStreamToServer(stream:MediaStream,data:any,url:string,time){
+    function sendVadStreamToServer(stream:MediaStream,data:any,url:string,time:number){
         let mediaStream =new MediaStream()
         //medRec = mediaStream
         mediaStream.addTrack(stream.getAudioTracks()[0])
@@ -1275,11 +1575,12 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
 
     useEffect(()=>{
 
-        if(myStream===null || users.length!=1)
+        if(myStream===null || isHost===null ||users.length!=1 || socket===null)
         return ;
         if(vadEffectRender.current>0)
         return ;
         vadEffectRender.current++
+        //@ts-ignore
         let myVad=null;
         async function VAD(cb1:CallableFunction,cb2:CallableFunction){
             // return new Promise(async (resolve,reject)=>{
@@ -1291,6 +1592,8 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
             //     resolve(myvad)
             //     reject(myvad)
             // })
+
+            //@ts-ignore
             const myvad = await vad.MicVAD.new({
                 onSpeechStart: cb1,
                 onSpeechEnd: cb2
@@ -1303,7 +1606,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
       let medRec =null
       let flag=false ;
 
-      function getWavBytes(buffer, options) {
+      function getWavBytes(buffer:any, options:any) {
         const type = options.isFloat ? Float32Array : Uint16Array
         const numFrames = buffer.byteLength / type.BYTES_PER_ELEMENT
       
@@ -1318,7 +1621,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
       }
       
 
-      function getWavHeader(options) {
+      function getWavHeader(options:any) {
         const numFrames =      options.numFrames
         const numChannels =    options.numChannels || 2
         const sampleRate =     options.sampleRate || 44100
@@ -1334,19 +1637,19 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
       
         let p = 0
       
-        function writeString(s) {
+        function writeString(s:string) {
           for (let i = 0; i < s.length; i++) {
             dv.setUint8(p + i, s.charCodeAt(i))
           }
           p += s.length
         }
       
-        function writeUint32(d) {
+        function writeUint32(d:any) {
           dv.setUint32(p, d, true)
           p += 4
         }
       
-        function writeUint16(d) {
+        function writeUint16(d:any) {
           dv.setUint16(p, d, true)
           p += 2
         }
@@ -1377,10 +1680,10 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         vadFlag.current=true
       }
       
-      function stop1(audio){
+      function stop1(audio:any){
           //console.log("stop tiggered",audio)
         
-        
+        //@ts-ignore
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const source = audioCtx.createBufferSource();
 
@@ -1431,8 +1734,13 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         downsampleToWav(wavBlob,(buffer:ArrayBuffer)=>{
             const mp3Buffer = encodeMp3(buffer)
             let blob = new Blob(mp3Buffer,{type:"audio/mp3"});
-          //  console.log('send to server')
-            sendToServer(blob,adminUrl,usersArrRef.current[0])
+            
+            // cue logo will appear at admin end
+            if(peersArrRef.current.length>0)
+            socket.emit('cue-loading-transmitter',{toPeer:peersArrRef.current[0],toggle:true})
+
+            
+            sendToServer(blob,adminUrl,{...usersArrRef.current[0],init:false})
         })
         // console.log('myArray buffer',myArrayBuffer,myArrayBuffer.length)
 
@@ -1444,9 +1752,6 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         // console.log('blob',URL.createObjectURL(blob))
         
         
-
-
-
         //let stream= audioCtx.createMediaStreamDestination()
         //console.log('context stream',stream.stream.getAudioTracks()[0])
 
@@ -1454,31 +1759,45 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         // medRec.
 
         // sendToServer(blob,adminUrl,usersArrRef.current[0])
-
        // vadFlag.current=false
-
       }
 
+      if(isHost===false){
+      sendToServer(new Blob([]),adminUrl,{...usersArrRef.current[0],init:true})
       VAD(start,stop1).then(vad=>{
+        //@ts-ignore
          myVad.start()
       })
-
-    },[myStream,users])
+    }
+    },[isHost,myStream,users,socket])
 
     let values = {
+        validUrl,setValidUrl,
         roomId,setRoomId,
         myId,setMyId,
         socket,setSocket,
+        socket2,setSocket2,
+        peersObjRef,peers2ObjRef,
+        peersArrRef,peers2ArrRef,
+        peer,setPeer,
+        peer2,setPeer2,
+        usersArrRef,
         users,setUsers,
         myStream,setMyStream,
         mob,setMob,
         isHost,setIsHost,
         isHostRef,
         cues,setCues,
-        msg,setMsg,
         name,setName,
         cameraToggle,setCameraToggle,
-        microphoneToggle,setMicroPhoneToggle
+        microphoneToggle,setMicroPhoneToggle,
+        msg,setMsg,
+        cueLoading,setCueLoading,
+        msgArrRef,
+        screenSharing,setScreenSharing,
+        largeVideoRef,
+        largeVideo,setLargeVideo,
+        custId,setCustId
     }   
 
     return (

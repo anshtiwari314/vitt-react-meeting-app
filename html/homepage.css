@@ -1,13 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville&display=swap');
 
-*{
-    box-sizing: border-box;
-    margin:0;
-    padding:0;
-}
 body{
     background-color: #727272;
-   
 }
 image{
     font-family: 'Libre Baskerville', serif;
@@ -38,7 +32,6 @@ html{
     text-align: center;
     font-size: 4rem;
     color:white;
-    margin: 1rem 0;
 }
 
 header{
@@ -134,9 +127,6 @@ header img{
         align-items: center; */
         display: block;
         text-align: center;
-    } 
-    .flex-container .input-wrapper{
-        border:0.1rem solid green;
     }
     .flex-container input{
         width:100%;
