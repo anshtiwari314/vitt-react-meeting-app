@@ -10,6 +10,7 @@ import DisplaySmallerComp from '../components/DisplaySmallerComp'
 import Msg from '../components/Msg'
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import PushPinIcon from '@mui/icons-material/PushPin';
+import NewUi from '../components/NewUi'
 
 //@ts-ignore
 export function Tray({openSideWindow,setOpenSideWindow,messagingOn,setMessagingOn,isMobile,toggleRmWindow,setToggleRmWindow,link}){
@@ -513,7 +514,7 @@ export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}
   
   const [selectedNumber,setSelectedNumber] = useState<number|null>(null)
   //@ts-ignore
-  const {users,usersArrRef,largeVideo,setLargeVideo,largeVideoRef} = useData()
+  const {users,usersArrRef,largeVideo,setLargeVideo,largeVideoRef,} = useData()
    
   let number = 3;
   //@ts-ignore
@@ -632,7 +633,8 @@ export function VideoLayout({openSideWindow,isMobile,toggleRmWindow}
           {/* {largeVideo && <DisplayComp e={largeVideo} muted={true} large={true} num={4193}/>} */}
           {/* @ts-ignore */}
           {toggleRmWindow===true ? 
-            <RmLayout/>
+            // <RmLayout/>
+            <NewUi/>
           : 
           //@ts-ignore
           largeVideo && <DisplayLargerComp e={largeVideo} muted={true} large={true} num={4193} isMobile={isMobile}/>
@@ -735,7 +737,7 @@ export default function MainPage() {
   
   
   //@ts-ignore
-  const {setRoomId,users,myStream,setMob,roomId,setIsHost,setMyId,isHostRef,normalize,setName,setValidUrl,setCustId} = useData()
+  const {setRoomId,users,myStream,setMob,roomId,setIsHost,setMyId,isHostRef,normalize,setName,setValidUrl,setCustId, setAdminUrl} = useData()
    const {link} = useParams()
   // const [searchParams,setSearchParams] = useSearchParams()
   // const navigate = useNavigate()
@@ -821,7 +823,7 @@ export default function MainPage() {
  let params = new URL(window.location).searchParams;
   //params.get('cust_id')
   let tempId =params.get('cust_id')
-  let tempIsHost = false 
+  let tempIsHost = false
   
 
   if(!localStorage.getItem('created_by_admin')){
@@ -870,13 +872,23 @@ export default function MainPage() {
   },[roomId])
 
   return (
+  <div>
+    {/* <input 
+      placeholder='please enter your ngrok url' 
+      onChange={(e)=>setAdminUrl(e.target.value)}
+      style={{
+        padding:'1rem',
+        width:'80%'
+        
+      }}
+      /> */}
     <div style={{
       overflow:"hidden",
       width:"100vw",
       height:"100vh",
       position:"relative",
       backgroundColor:'#636363',
-      // border:"0.3rem solid tomato",
+      //border:"0.3rem solid tomato",
 
       }}>
     
@@ -906,5 +918,6 @@ export default function MainPage() {
     />
     
     </div>
+  </div>
   )
 }

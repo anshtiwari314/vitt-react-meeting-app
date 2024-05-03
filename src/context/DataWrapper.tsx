@@ -107,8 +107,8 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
     const largeVideoRef = useRef(null)
 
 
-    const adminUrl = `https://tso4smyf1j.execute-api.ap-south-1.amazonaws.com/test/transcription-2way-clientaudio`;
-    
+    //const adminUrl = `https://tso4smyf1j.execute-api.ap-south-1.amazonaws.com/test/transcription-2way-clientaudio`;
+    const [adminUrl,setAdminUrl] = useState(`https://tso4smyf1j.execute-api.ap-south-1.amazonaws.com/test/transcription-2way-clientaudio`)
     //
     //https://19vnck5aw8.execute-api.ap-south-1.amazonaws.com/Prod/save-adminaudio
     const adminClientUrl = `http://localhost:5005/admin-client`
@@ -529,7 +529,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
 
     let Data = {
         color: "#7D11E9",
-        content: ['A mutual fund pools investment from multiple inves…and debt instruments <br/>2. Shares <br/>3. Bonds'],
+        content: ['Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32. The standard chunk of Lorem Ipsum used since the 1500s is reproduced below for those interested. Sections 1.10.32 and 1.10.33 from "de Finibus Bonorum et Malorum" by Cicero are also reproduced in their exact original form, accompanied by English versions from the 1914 translation by H. Rackham.'],
         iconColor: "blue",
         initquery: "what is mutual fund? what is mutual fund? is mutual fund what is mutual fund what is mutual fund",
         match_score: "0.9741857",
@@ -542,11 +542,11 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
     
 
     useEffect( ()=>{
-        // handleData(Data)
-        // handleData(Data)
-        // handleData(Data)
-        // handleData(Data)
-        // handleData(Data)
+        //handleData(Data)
+        //handleData(Data)
+        //handleData(Data)
+        //handleData(Data)
+        //handleData(Data)
         if(socket2===null || myId==='' || custId==='' || isHost===null)
         return ;
 
@@ -561,7 +561,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
                 console.log(data.sessionid ===myId,data.sessionid,myId)
     
                if(data.sessionid===custId && isHost===true){
-                
+                //console.log(data)
                     handleData(data)
                // handleAudio(data.speech_bytes,data.file_name)
                 }
@@ -1769,7 +1769,7 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
          myVad.start()
       })
     }
-    },[isHost,myStream,users,socket])
+    },[isHost,myStream,users,socket,adminUrl])
 
     let values = {
         validUrl,setValidUrl,
@@ -1797,7 +1797,8 @@ export default function DataWrapper({children}:{children:React.ReactNode}) {
         screenSharing,setScreenSharing,
         largeVideoRef,
         largeVideo,setLargeVideo,
-        custId,setCustId
+        custId,setCustId,
+        adminUrl,setAdminUrl
     }   
 
     return (
